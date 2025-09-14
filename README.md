@@ -24,7 +24,7 @@ Notes:
 - GitHub Pages automatically serves over HTTPS so service workers work.
 
 Option B) Quick local HTTPS using ngrok (for dev/test)
-1. On your development machine, unpack the ZIP and cd into the folder.
+1. On your development machine, unpack the ZIP and cd into the folder
 2. Run a simple server: `python -m http.server 8000`
 3. Install ngrok (https://ngrok.com/) and run `ngrok http 8000`
    - ngrok gives an HTTPS forwarding URL like https://abcd1234.ngrok.io
