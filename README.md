@@ -52,4 +52,4 @@ Troubleshooting:
 Want me to:
 - generate adaptive foreground/background icon layers,
 - create a GitHub Actions workflow to auto-publish to GitHub Pages,
-- or hand-hold through pushing to your repo? Reply and I'll do it.
+- or hand-hold through pushing to your repo? Reply and I'll do it..
