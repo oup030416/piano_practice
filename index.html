@@ -1,1 +1,714 @@
-﻿
+﻿<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0e0f13" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>Keyboard Practice — 19:9 (Mobile Landscape)</title>
+  <style>
+    :root {
+      --c-bg: #0e0f13;
+      --c-text: #e8eaed;
+      --c-key-white: #f6f7fb;
+      --c-key-black: #16181d;
+      --c-key-border: #2b2f36;
+      --c-key-active: #4f8cff;
+      --c-accent: #80d4ff;
+      --radius-lg: 12px;
+      --white-key-gap: 0.75%;
+      --black-key-width: 62%;
+      --black-key-height: 62%;
+      --display-pad: 1rem;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--c-bg);
+      color: var(--c-text);
+      -webkit-font-smoothing: antialiased
+    }
+
+    .shell {
+      width: 100vw;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .container {
+      width: 100%;
+      max-width: 100vw;
+      aspect-ratio: 19/9;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      display: flex;
+      flex-direction: column
+    }
+
+    .display {
+      flex: 0 0 30%;
+      padding: var(--display-pad);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      position: relative
+    }
+
+    .display__top {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center
+    }
+
+    .display__current {
+      font-size: 2.0rem;
+      font-weight: 700
+    }
+
+    .display__controls {
+      display: flex;
+      gap: 0.5rem
+    }
+
+    .btn {
+      padding: 0.45rem 0.7rem;
+      border-radius: 8px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--c-text);
+      font-weight: 600
+    }
+
+    .btn:disabled {
+      opacity: 0.4
+    }
+
+    .timerWrap {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 0.6rem
+    }
+
+    .timerBar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--c-accent), var(--c-key-active));
+      transform-origin: left
+    }
+
+    .display__result {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      height: 1.2rem
+    }
+
+    .display__summary {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-top: 0.4rem
+    }
+
+    .piano {
+      flex: 1 1 70%;
+      position: relative;
+      display: block;
+      touch-action: none;
+      user-select: none
+    }
+
+    .piano__layer--whites {
+      display: flex;
+      height: 100%;
+      position: relative;
+      z-index: 1
+    }
+
+    .piano__key {
+      flex: 1;
+      position: relative;
+      border: 1px solid var(--c-key-border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 0.32rem;
+      transition: transform 0.08s ease, background-color .2s ease, box-shadow .2s ease
+    }
+
+    .piano__key--white {
+      --key-base: var(--c-key-white);
+      background-color: var(--key-base);
+      border-radius: 6px;
+      margin-right: var(--white-key-gap)
+    }
+
+    .piano__key--white:last-child {
+      margin-right: 0
+    }
+
+    .piano__label {
+      font-size: 0.75rem;
+      color: #222
+    }
+
+    .piano__layer--blacks {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 100%;
+      pointer-events: none;
+      z-index: 2
+    }
+
+    .piano__key--black {
+      --key-base: var(--c-key-black);
+      position: absolute;
+      pointer-events: auto;
+      background-color: var(--key-base);
+      border-radius: 6px;
+      transform: translateX(-50%);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .5);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 0.25rem;
+      transition: transform .08s ease, background-color .2s ease, box-shadow .2s ease
+    }
+
+    .is-active {
+      box-shadow: 0 0 0 3px rgba(128, 212, 255, 0.12) inset;
+      transform: translateY(2px)
+    }
+
+    /* feedback visual */
+    .flash-correct {
+      animation: flashCorrect .6s ease
+    }
+
+    .flash-wrong {
+      animation: flashWrong .6s ease
+    }
+
+    @keyframes flashCorrect {
+      0% {
+        background: transparent;
+        transform: scale(1)
+      }
+
+      20% {
+        background: rgba(80, 200, 120, 0.12);
+        transform: scale(1.03)
+      }
+
+      100% {
+        background: transparent;
+        transform: scale(1)
+      }
+    }
+
+    @keyframes flashWrong {
+      0% {
+        background: transparent;
+        transform: scale(1)
+      }
+
+      20% {
+        background: rgba(220, 80, 80, 0.12);
+        transform: translateX(-4px)
+      }
+
+      40% {
+        transform: translateX(4px)
+      }
+
+      60% {
+        transform: translateX(-3px)
+      }
+
+      100% {
+        background: transparent;
+        transform: scale(1)
+      }
+    }
+
+    /* strong wrong color fill */
+    .wrong-flash {
+      animation: wrongFill 800ms ease
+    }
+
+    @keyframes wrongFill {
+      0% {
+        background-color: var(--key-base);
+        box-shadow: 0 0 0 0 rgba(220, 80, 80, 0)
+      }
+
+      35% {
+        background-color: #d83434;
+        box-shadow: 0 0 0 8px rgba(220, 80, 80, 0.25) inset, 0 8px 20px rgba(220, 80, 80, 0.25)
+      }
+
+      70% {
+        background-color: #ff4d4d
+      }
+
+      100% {
+        background-color: var(--key-base);
+        box-shadow: 0 0 0 0 rgba(220, 80, 80, 0)
+      }
+    }
+
+    /* score token */
+    .score-token {
+      position: absolute;
+      pointer-events: none;
+      padding: 6px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      background: var(--c-accent);
+      color: #02111a;
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      will-change: transform, opacity
+    }
+
+    .score-token--correct {
+      background: linear-gradient(90deg, #a6ffcb, #80d4ff);
+      color: #04202a
+    }
+
+    @keyframes tokenMove {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1
+      }
+
+      60% {
+        transform: translateY(-36px) scale(1.05);
+        opacity: 0.9
+      }
+
+      100% {
+        transform: translateY(-64px) scale(0.6);
+        opacity: 0
+      }
+    }
+
+    .score-token.animate {
+      animation: tokenMove 700ms cubic-bezier(.2, .9, .2, 1) forwards
+    }
+
+    @media (max-width:420px) {
+      .display__current {
+        font-size: 1.6rem
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <main class="container" id="app" role="application" aria-label="Piano practice">
+      <section class="display" id="display" aria-live="polite">
+        <div class="display__top">
+          <div class="display__current" id="displayPrompt">—</div>
+          <div class="display__controls">
+            <button id="btnStart" class="btn">시작</button>
+            <button id="btnStop" class="btn" disabled>정지</button>
+            <button id="btnInstall" class="btn" hidden>설치</button>
+          </div>
+        </div>
+        <div class="timerWrap" aria-hidden="false">
+          <div id="timerBar" class="timerBar"></div>
+        </div>
+        <div class="display__result" id="displayResult"></div>
+        <div class="display__summary" id="displaySummary">정답: 0 | 오답: 0</div>
+      </section>
+      <section class="piano" id="piano" aria-label="piano keyboard">
+        <div class="piano__layer piano__layer--whites" id="whites"></div>
+        <div class="piano__layer piano__layer--blacks" id="blacks"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    /*
+      Fixes:
+      - Remove duplicate declaration of `pointerMap` which caused `Identifier 'pointerMap' has already been declared`.
+      Features kept:
+      - 8 white keys (B4..B5), black keys at specific positions
+      - Start/Stop, 2s timer with visual bar, strong wrong-color flash on the correct key
+      - Score token animation on correct, A2HS/PWA support
+      + Added lightweight self-tests (console) to reduce regressi
+    */
+
+    const WHITE_NOTES = ['B4', 'C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5'];
+    const BLACK_POSITIONS = [
+      { between: ['C5', 'D5'], note: 'C#5' },
+      { between: ['D5', 'E5'], note: 'D#5' },
+      { between: ['F5', 'G5'], note: 'F#5' },
+      { between: ['G5', 'A5'], note: 'G#5' },
+      { between: ['A5', 'B5'], note: 'A#5' }
+    ];
+
+    const TIMER_DURATION = 2000; // ms per question
+
+    const whitesEl = document.getElementById('whites');
+    const blacksEl = document.getElementById('blacks');
+    const display = document.getElementById('display');
+    const displayPrompt = document.getElementById('displayPrompt');
+    const displayResult = document.getElementById('displayResult');
+    const displaySummary = document.getElementById('displaySummary');
+    const timerBar = document.getElementById('timerBar');
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const btnInstall = document.getElementById('btnInstall');
+
+    function noteToId(note) { return 'key-' + note.replace(/#/g, 's'); }
+    function ariaLabel(note) { return note.replace('#', ' sharp ').replace(/(\d+)/, ' $1').replace(/\s+/g, ' ').trim(); }
+
+    function createWhiteKeys() {
+      WHITE_NOTES.forEach((note, idx) => {
+        const key = document.createElement('button');
+        key.className = 'piano__key piano__key--white';
+        key.id = noteToId(note);
+        key.setAttribute('role', 'button');
+        key.setAttribute('aria-label', ariaLabel(note));
+        key.dataset.note = note;
+        key.dataset.color = 'white';
+        key.dataset.index = String(idx);
+        key.dataset.octave = (note.match(/(\d+)/) || [])[0] || '';
+        key.style.touchAction = 'none';
+        const label = document.createElement('div'); label.className = 'piano__label'; label.textContent = note;
+        key.appendChild(label);
+        whitesEl.appendChild(key);
+      });
+    }
+
+    function createBlackKeys() {
+      const whiteCount = WHITE_NOTES.length;
+      const whiteWidthPercent = 100 / whiteCount;
+      const blackWidthPercent = whiteWidthPercent * 0.62;
+
+      BLACK_POSITIONS.forEach(bp => {
+        const leftIndex = WHITE_NOTES.indexOf(bp.between[0]);
+        const rightIndex = WHITE_NOTES.indexOf(bp.between[1]);
+        if (leftIndex === -1 || rightIndex === -1) return;
+        const centerPercent = ((leftIndex + rightIndex + 1) / 2) * whiteWidthPercent;
+        const key = document.createElement('button');
+        key.className = 'piano__key piano__key--black';
+        key.id = noteToId(bp.note);
+        key.setAttribute('role', 'button');
+        key.setAttribute('aria-label', ariaLabel(bp.note));
+        key.dataset.note = bp.note;
+        key.dataset.color = 'black';
+        key.dataset.index = String(leftIndex);
+        key.dataset.octave = (bp.note.match(/(\d+)/) || [])[0] || '';
+        key.style.left = centerPercent + '%';
+        key.style.width = blackWidthPercent + '%';
+        key.style.height = '62%';
+        blacksEl.appendChild(key);
+      });
+    }
+
+    // input handling (single declaration)
+    const pointerMap = new Map();
+    function payloadFromEl(el) {
+      return {
+        note: el.dataset.note,
+        color: el.dataset.color,
+        octave: Number(el.dataset.octave) || null,
+        index: Number(el.dataset.index) || null
+      };
+    }
+
+    let correctCount = 0, wrongCount = 0;
+    let currentPrompt = null;
+    let running = false;
+    let questionTimer = null;
+    let afterAnswerTimer = null;
+
+    function randomPrompt() {
+      const baseIdx = Math.floor(Math.random() * WHITE_NOTES.length);
+      const base = WHITE_NOTES[baseIdx];
+      const mode = Math.floor(Math.random() * 3); // 0=자체, 1=후, 2=전
+
+      if (mode === 0) { // 해당 건반 자체
+        currentPrompt = { text: base.replace(/\d+/, ''), target: base };
+      } else if (mode === 1 && baseIdx < WHITE_NOTES.length - 1) { // 후
+        currentPrompt = { text: `${base.replace(/\d+/, '')} 후`, target: WHITE_NOTES[baseIdx + 1] };
+      } else if (mode === 2 && baseIdx > 0) { // 전
+        currentPrompt = { text: `${base.replace(/\d+/, '')} 전`, target: WHITE_NOTES[baseIdx - 1] };
+      } else {
+        return randomPrompt(); // 범위 벗어나면 다시 뽑기
+      }
+      displayPrompt.textContent = currentPrompt.text;
+    }
+
+    function startTimer() {
+      if (questionTimer) clearTimeout(questionTimer);
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
+      void timerBar.offsetWidth;
+      timerBar.style.transition = `width ${TIMER_DURATION}ms linear`;
+      requestAnimationFrame(() => { timerBar.style.width = '0%'; });
+      questionTimer = setTimeout(() => { handleTimeout(); }, TIMER_DURATION);
+    }
+
+    function stopTimer() {
+      if (questionTimer) { clearTimeout(questionTimer); questionTimer = null; }
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
+    }
+
+    function wrongColorFlashOn(note) {
+      const el = document.getElementById(noteToId(note));
+      if (!el) return;
+      el.classList.add('wrong-flash');
+      setTimeout(() => { el.classList.remove('wrong-flash'); }, 820);
+    }
+
+    function handleTimeout() {
+      if (!running || !currentPrompt) return;
+      wrongCount++;
+      displayResult.textContent = `시간초과! (${currentPrompt.target} 이어야 함)`;
+      wrongColorFlashOn(currentPrompt.target);
+      flash('wrong');
+      updateSummary();
+      currentPrompt = null;
+      afterAnswerTimer = setTimeout(() => { if (running) nextQuestion(); }, 700);
+    }
+
+    function spawnScoreToken(text) {
+      const token = document.createElement('div');
+      token.className = 'score-token score-token--correct';
+      token.textContent = text;
+      display.appendChild(token);
+      requestAnimationFrame(() => {
+        const targetRect = displayResult.getBoundingClientRect();
+        const displayRect = display.getBoundingClientRect();
+        const left = (targetRect.left + targetRect.right) / 2 - displayRect.left;
+        const top = targetRect.top - displayRect.top;
+        token.style.left = (left - token.offsetWidth / 2) + 'px';
+        token.style.top = (top - 6) + 'px';
+        token.classList.add('animate');
+      });
+      token.addEventListener('animationend', () => { token.remove(); });
+    }
+
+    function checkAnswer(note) {
+      if (!running || !currentPrompt) return;
+      if (questionTimer) { clearTimeout(questionTimer); questionTimer = null; }
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
+
+      if (note === currentPrompt.target) {
+        correctCount++;
+        displayResult.textContent = '정답!';
+        flash('correct');
+        spawnScoreToken('+1');
+      } else {
+        wrongCount++;
+        displayResult.textContent = `오답! (${currentPrompt.target} 이어야 함)`;
+        wrongColorFlashOn(currentPrompt.target);
+        flash('wrong');
+      }
+      updateSummary();
+      currentPrompt = null;
+      afterAnswerTimer = setTimeout(() => { if (running) nextQuestion(); }, 700);
+    }
+
+    function flash(type) {
+      const el = displayPrompt;
+      if (type === 'correct') {
+        el.classList.remove('flash-wrong');
+        void el.offsetWidth;
+        el.classList.add('flash-correct');
+      } else {
+        el.classList.remove('flash-correct');
+        void el.offsetWidth;
+        el.classList.add('flash-wrong');
+      }
+      setTimeout(() => { el.classList.remove('flash-correct', 'flash-wrong'); }, 650);
+    }
+
+    function updateSummary() {
+      displaySummary.textContent = `정답: ${correctCount} | 오답: ${wrongCount}`;
+    }
+
+    function nextQuestion() {
+      randomPrompt();
+      displayResult.textContent = '';
+      startTimer();
+    }
+
+
+    // === 피아노 소리 합성 ===
+    function playNote(note) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!playNote.ctx) playNote.ctx = new AudioContext();
+      const ctx = playNote.ctx;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.value = noteToFrequency(note);
+      gain.gain.value = 0.2;
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    }
+
+    function noteToFrequency(note) {
+      const A4 = 440;
+      const NOTES = {
+        'C': -9, 'C#': -8, 'D': -7, 'D#': -6, 'E': -5, 'F': -4,
+        'F#': -3, 'G': -2, 'G#': -1, 'A': 0, 'A#': 1, 'B': 2
+      };
+      const match = note.match(/^([A-G]#?)(\d)$/);
+      if (!match) return A4;
+      const [, key, oct] = match;
+      const semitone = NOTES[key];
+      const octave = parseInt(oct, 10);
+      const n = semitone + (octave - 4) * 12;
+      return A4 * Math.pow(2, n / 12);
+    }
+
+    function onPointerDown(e) {
+      const el = e.currentTarget;
+      try { el.setPointerCapture(e.pointerId); } catch (_) { }
+      pointerMap.set(e.pointerId, el);
+      el.classList.add('is-active');
+      const detail = payloadFromEl(el);
+
+      playNote(detail.note); // 클릭 시 소리 재생
+      checkAnswer(detail.note); // 정답 판정
+    }
+
+    function onPointerUp(e) {
+      const el = pointerMap.get(e.pointerId) || e.currentTarget;
+      if (!el) return;
+      try { el.releasePointerCapture(e.pointerId); } catch (_) { }
+      el.classList.remove('is-active');
+      pointerMap.delete(e.pointerId);
+    }
+
+    function onPointerCancel(e) { onPointerUp(e); }
+
+    function attachHandlers() {
+      const keys = document.querySelectorAll('.piano__key');
+      keys.forEach(k => {
+        k.addEventListener('pointerdown', onPointerDown);
+        k.addEventListener('pointerup', onPointerUp);
+        k.addEventListener('pointercancel', onPointerCancel);
+        k.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
+      });
+    }
+
+    function startGame() {
+      if (running) return;
+      running = true;
+      correctCount = 0; wrongCount = 0; updateSummary();
+      btnStart.disabled = true; btnStop.disabled = false;
+      nextQuestion();
+    }
+    function stopGame() {
+      running = false;
+      btnStart.disabled = false; btnStop.disabled = true;
+      if (questionTimer) { clearTimeout(questionTimer); questionTimer = null; }
+      if (afterAnswerTimer) { clearTimeout(afterAnswerTimer); afterAnswerTimer = null; }
+      timerBar.style.transition = 'none'; timerBar.style.width = '100%';
+      displayPrompt.textContent = '일시정지';
+      displayResult.textContent = '';
+    }
+
+    btnStart.addEventListener('click', startGame);
+    btnStop.addEventListener('click', stopGame);
+
+    // === A2HS (Add to Home Screen) support ===
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btnInstall.hidden = false;
+    });
+
+    btnInstall.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      btnInstall.hidden = true;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      btnInstall.hidden = true;
+    });
+
+    // Service Worker registration (required for installability on Chrome)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .catch(err => console.log('[SW register] failed:', err));
+      });
+    }
+
+    let history = [];
+    function pushHistory(note) {
+      history.unshift({ note, t: Date.now() });
+      if (history.length > 10) history.length = 10;
+    }
+
+    function renderHistory() { /* not used now */ }
+
+    /* --- Self-tests (non-intrusive, console only) --- */
+    function runSelfTests() {
+      try {
+        console.groupCollapsed('[Self-tests] Piano Practice');
+        console.assert(WHITE_NOTES.length === 8, 'WHITE_NOTES length should be 8');
+        const whites = document.querySelectorAll('.piano__key--white').length;
+        const blacks = document.querySelectorAll('.piano__key--black').length;
+        console.assert(whites === 8, '8 white keys should render');
+        console.assert(blacks === 5, '5 black keys should render');
+        console.assert(pointerMap instanceof Map, 'pointerMap is a Map');
+        // Prompt sanity: target must be one step neighbor of some middle key
+        const savedPrompt = currentPrompt; const savedText = displayPrompt.textContent;
+        randomPrompt();
+        const tIdx = WHITE_NOTES.indexOf(currentPrompt.target);
+        console.assert(tIdx > 0 && tIdx < WHITE_NOTES.length, 'Prompt target is within range');
+        // restore
+        currentPrompt = savedPrompt; displayPrompt.textContent = savedText;
+        console.groupEnd();
+      } catch (e) { console.warn('[Self-tests] failed', e); }
+    }
+
+    function init() {
+      createWhiteKeys();
+      createBlackKeys();
+      requestAnimationFrame(() => { attachHandlers(); });
+      displayPrompt.textContent = '시작을 눌러 연습을 시작하세요.';
+      runSelfTests();
+    }
+
+    init();
+  </script>
+
+</body>
+
+</html>
